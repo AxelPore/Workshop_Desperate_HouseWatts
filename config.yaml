@@ -11,6 +11,18 @@
 # healer arrête d'essayer tout seul et escalade vers un humain.
 max_retries: 3
 
+# Secret attendu dans le header "X-Webhook-Secret" de chaque requête reçue
+# sur /webhook. À configurer aussi côté Alertmanager (webhook_configs ->
+# http_config -> headers). Si tu laisses ce champ vide/absent, l'auth est
+# désactivée et le healer le signale par un warning au démarrage — à
+# n'utiliser que sur un réseau de confiance (dev, VPN interne).
+webhook_secret: "change-me-avant-la-prod"
+
+# Timeout par défaut (en secondes) appliqué à chaque appel ansible-playbook
+# ou terraform apply, pour éviter qu'une réparation bloquée ne bloque tout
+# le traitement des alertes. Surchargeable par action avec "timeout_seconds".
+default_timeout_seconds: 300
+
 actions:
 
   # ---------------------------------------------------------------------
@@ -23,6 +35,7 @@ actions:
     playbook: playbooks/restart_vm.yml
     extra_vars:
       vmid: "{vmid}"
+    # timeout_seconds: 120  # optionnel, surcharge default_timeout_seconds
 
   # ---------------------------------------------------------------------
   # Exemple 2 : un disque est presque plein -> on lance Terraform pour
