@@ -32,7 +32,6 @@ NODES = {
     "Srv-Graphana":              "consommateur",
     "Srv-bdd":                   "consommateur",
     "Srv-backup":                "consommateur",
-    "Commerce":                  "consommateur",
     "Habitations":               "consommateur",
     "Hôpital":                   "consommateur",
 }
@@ -57,7 +56,6 @@ EDGES = [
     ("Serveurs",           "Srv-Graphana",          1200),
     ("Serveurs",           "Srv-bdd",               1000),
     ("Serveurs",           "Srv-backup",            800),
-    ("Quartiers",          "Commerce",              2000),
     ("Quartiers",          "Habitations",           2500),
     ("Quartiers",          "Hôpital",               1800),
 ]
@@ -93,9 +91,8 @@ pos = {
     "Srv-Graphana":          (5, 0),
     "Srv-bdd":               (5.5, 0),
     "Srv-backup":            (4.5, 0),
-    "Commerce":              (6.5, 0),
-    "Habitations":           (7, 0),
-    "Hôpital":               (7.5, 0),
+    "Habitations":           (6.75, 0),
+    "Hôpital":               (7.25, 0),
 }
 
 # ---------------------------------------------------------------------------
