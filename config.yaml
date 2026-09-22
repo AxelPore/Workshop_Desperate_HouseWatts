@@ -1,0 +1,72 @@
+# ---------------------------------------------------------------------------
+# Configuration du Healer
+# ---------------------------------------------------------------------------
+# Ce fichier doit se trouver dans le même dossier que healer.py.
+# Adapte les clés sous "actions" pour qu'elles correspondent EXACTEMENT aux
+# valeurs de "alertname" telles qu'elles arrivent dans le payload
+# Alertmanager (labels.alertname).
+# ---------------------------------------------------------------------------
+
+# Nombre d'échecs consécutifs tolérés (par couple alerte+vmid) avant que le
+# healer arrête d'essayer tout seul et escalade vers un humain.
+max_retries: 3
+
+actions:
+
+  # ---------------------------------------------------------------------
+  # Exemple 1 : une VM est down -> on relance un playbook Ansible qui la
+  # redémarre. Les valeurs entre {accolades} sont remplacées par les
+  # labels reçus dans l'alerte (ici {vmid}).
+  # ---------------------------------------------------------------------
+  VMDown:
+    type: ansible
+    playbook: playbooks/restart_vm.yml
+    extra_vars:
+      vmid: "{vmid}"
+
+  # ---------------------------------------------------------------------
+  # Exemple 2 : un disque est presque plein -> on lance Terraform pour
+  # augmenter la taille du volume. "working_dir" est le dossier contenant
+  # le code Terraform correspondant (main.tf, variables.tf, etc.).
+  # ---------------------------------------------------------------------
+  DiskAlmostFull:
+    type: terraform
+    working_dir: terraform/disk-resize
+    vars:
+      vm_id: "{vmid}"
+      new_size_gb: "50"
+
+  # ---------------------------------------------------------------------
+  # Exemple 3 : un service applicatif est down sur une VM -> on relance
+  # juste le service via Ansible (playbook différent du restart complet).
+  # ---------------------------------------------------------------------
+  ServiceDown:
+    type: ansible
+    playbook: playbooks/restart_service.yml
+    extra_vars:
+      vmid: "{vmid}"
+      service_name: "{service}"
+
+  # ---------------------------------------------------------------------
+  # Exemple 4 : charge CPU trop élevée -> on scale horizontalement via
+  # Terraform (ex: ajouter une instance derrière un load balancer).
+  # ---------------------------------------------------------------------
+  HighCPULoad:
+    type: terraform
+    working_dir: terraform/autoscale
+    vars:
+      cluster_id: "{cluster}"
+      action: "scale_out"
+
+# ---------------------------------------------------------------------------
+# Notes :
+# - Toute alerte reçue dont le nom n'apparaît PAS comme clé ci-dessus sera
+#   simplement loguée (event: no_action_configured) sans action déclenchée.
+# - Un template comme "{vmid}" ou "{service}" doit correspondre à un label
+#   réellement présent dans l'alerte Alertmanager, sinon .format() lèvera
+#   une KeyError. Vérifie bien les labels envoyés par tes règles d'alerte
+#   avant de les référencer ici.
+# - "type" ne peut être que "ansible" ou "terraform" (seuls runners connus
+#   du script). Pour un nouveau type d'action, il faut d'abord l'ajouter
+#   dans ACTION_RUNNERS côté healer.py.
+# ---------------------------------------------------------------------------
