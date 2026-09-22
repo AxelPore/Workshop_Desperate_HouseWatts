@@ -14,7 +14,15 @@ Authentification recommandée : un API Token Proxmox (Datacenter > Permissions
    sauvegardées). C'est volontaire ici (simulation de crise), mais ne lance
    pas ça sur des VMs de prod sans savoir ce que tu fais.
 
+⚠️ MODE AUTOMATIQUE (appel sans argument) : comme ip_change.py et
+   destruction_physique.py, lancer le script sans rien passer tire UNE VM au
+   hasard parmi toutes les VMs connues (toutes zones confondues) et la coupe
+   directement, SANS demander de confirmation — un appel sans argument est
+   par définition non-interactif (ex: appelé par chaos_manager.py, sans
+   stdin disponible pour répondre à un prompt).
+
 Usage :
+    python power_outage.py                       # ⇦ NOUVEAU : VM aléatoire, coupure auto, sans confirmation
     python power_outage.py --zone quartiers
     python power_outage.py --vm pve-node1 105          # une VM précise
     python power_outage.py --zone serveurs --yes       # sans confirmation (démo/auto)
@@ -22,10 +30,12 @@ Usage :
 """
 
 # argparse : gère les options de la ligne de commande (--zone, --vm, --yes...)
+# random   : tirage aléatoire d'une VM en mode automatique (sans argument)
 # sys      : utilisé pour sys.exit() (arrêter le script proprement avec un
 #            message d'erreur) et sys.stderr (afficher les erreurs séparément
 #            de la sortie normale)
 import argparse
+import random
 import sys
 
 # proxmoxer : wrapper Python autour de l'API REST de Proxmox VE. Il transforme
@@ -66,6 +76,11 @@ ZONES = {
         ("pve-node1", 106),   # Poste infirmerie
     ],
 }
+
+# Liste à plat de toutes les VMs connues (toutes zones confondues), construite
+# une seule fois à partir de ZONES. C'est dans cette liste que le mode
+# automatique (sans argument) tire une VM au hasard à couper.
+ALL_VMS = [(node, vmid) for vms in ZONES.values() for node, vmid in vms]
 
 
 def connect() -> ProxmoxAPI:
@@ -146,9 +161,10 @@ def confirm(message: str) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Simule une coupure de courant réelle via arrêt dur de VMs Proxmox.")
-    # Trois modes mutuellement exclusifs : couper une zone entière, une VM
-    # précise, ou juste consulter la config sans rien couper (--list)
-    group = parser.add_mutually_exclusive_group(required=True)
+    # required=False (au lieu de True) : appeler le script sans aucun
+    # argument est désormais un cas valide, traité plus bas comme un tirage
+    # aléatoire automatique parmi toutes les VMs connues (ALL_VMS).
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--zone", help="Nom de la zone à couper (voir --list)")
     group.add_argument("--vm", nargs=2, metavar=("NODE", "VMID"), help="Cibler une VM précise")
     group.add_argument("--list", action="store_true", help="Lister les zones connues et leurs VMs")
@@ -164,8 +180,22 @@ def main() -> None:
                 print(f"  - node={node} vmid={vmid}")
         return
 
+    # NOUVEAU : aucun argument fourni (--zone et --vm absents) → mode
+    # automatique. On tire une VM au hasard dans ALL_VMS (une seule VM, pas
+    # une zone entière, pour rester cohérent avec un "incident ponctuel").
+    # Comme ce mode est fait pour tourner sans interaction (ex: appelé par
+    # chaos_manager.py sans stdin), on force aussi --yes en interne : pas de
+    # prompt de confirmation possible dans ce contexte.
+    auto_mode = not args.zone and not args.vm
+    if auto_mode:
+        node, vmid = random.choice(ALL_VMS)
+        args.vm = (node, str(vmid))
+        args.yes = True
+        print(f"[AUTO] Machine tirée au hasard pour coupure de courant : node={node} vmid={vmid}")
+
     # Confirmation interactive avant toute action réelle, sauf si --yes est
-    # passé (utile pour automatiser la démo en live sans taper "y" à chaque fois)
+    # passé (explicitement, ou implicitement en mode auto) — utile pour
+    # automatiser la démo en live sans taper "y" à chaque fois.
     if not args.yes:
         target_desc = f"la zone '{args.zone}'" if args.zone else f"la VM {args.vm[1]} sur {args.vm[0]}"
         if not confirm(f"Confirmer la coupure BRUTALE de {target_desc} ?"):

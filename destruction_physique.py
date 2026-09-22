@@ -12,17 +12,26 @@ Prérequis :
    --backup-before si tu veux pouvoir la restaurer entre deux répétitions
    de ta démo, sinon prépare-toi à recréer la VM depuis un template/clone.
 
+⚠️ MODE AUTOMATIQUE (appel sans argument) : la confirmation interactive
+   ("Tape DESTROY...") est SAUTÉE, car un script lancé sans argument est
+   par définition non-interactif (ex: appelé par chaos_manager.py). La VM
+   est réellement détruite sans demander confirmation. Utilise --vm ou
+   --zone en manuel si tu veux garder le filet de sécurité du prompt.
+
 Usage :
+    python destroy_vm.py                       # ⇦ NOUVEAU : VM aléatoire, destruction auto, sans prompt
     python destroy_vm.py --vm pve-node1 105
     python destroy_vm.py --vm pve-node1 105 --backup-before
     python destroy_vm.py --zone quartiers --confirm DESTROY
 """
 
 # argparse : options de ligne de commande
+# random   : tirage aléatoire d'une VM en mode automatique (sans argument)
 # sys      : sys.exit() / sys.stderr pour les erreurs
 # time     : time.sleep() pour laisser Proxmox le temps de traiter les actions
 #            asynchrones (backup, arrêt) avant d'enchaîner l'étape suivante
 import argparse
+import random
 import sys
 import time
 
@@ -48,6 +57,11 @@ ZONES = {
     "serveurs":  [("pve-node1", 102), ("pve-node1", 103), ("pve-node1", 104)],
     "quartiers": [("pve-node1", 105), ("pve-node1", 106)],
 }
+
+# Liste à plat de toutes les VMs connues (toutes zones confondues), construite
+# une seule fois à partir de ZONES. C'est dans cette liste que le mode
+# automatique (sans argument) tire une VM au hasard.
+ALL_VMS = [(node, vmid) for vms in ZONES.values() for node, vmid in vms]
 
 
 def connect() -> ProxmoxAPI:
@@ -140,7 +154,10 @@ def destroy_zone(proxmox: ProxmoxAPI, zone: str, backup_before: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Simule des dégâts physiques : détruit réellement une/des VM Proxmox.")
-    group = parser.add_mutually_exclusive_group(required=True)
+    # required=False (au lieu de True) : appeler le script sans aucun
+    # argument est désormais un cas valide, traité plus bas comme un tirage
+    # aléatoire automatique parmi toutes les VMs connues (ALL_VMS).
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--vm", nargs=2, metavar=("NODE", "VMID"), help="Détruire une VM précise")
     group.add_argument("--zone", help="Détruire toutes les VMs d'une zone")
     group.add_argument("--list", action="store_true", help="Lister les zones connues et leurs VMs")
@@ -160,18 +177,32 @@ def main() -> None:
                 print(f"  - node={node} vmid={vmid}")
         return
 
+    # NOUVEAU : aucun argument fourni (--vm et --zone absents) → mode
+    # automatique. On tire une VM au hasard dans ALL_VMS, et comme ce mode
+    # est fait pour être appelé sans interaction (ex: chaos_manager.py qui
+    # ne fournit pas de stdin), la confirmation "DESTROY" est sautée plus
+    # bas via ce flag auto_mode.
+    auto_mode = not args.vm and not args.zone
+    if auto_mode:
+        node, vmid = random.choice(ALL_VMS)
+        args.vm = (node, str(vmid))
+        print(f"[AUTO] Machine tirée au hasard pour destruction : node={node} vmid={vmid}")
+
     target_desc = f"la zone '{args.zone}'" if args.zone else f"la VM {args.vm[1]} sur {args.vm[0]}"
 
     # Confirmation renforcée par rapport à power_outage.py : on exige de
     # taper le mot "DESTROY" en entier plutôt qu'un simple y/N, car l'action
     # est irréversible (contrairement à un arrêt, qu'on peut annuler en
-    # rallumant la VM).
-    if args.confirm != "DESTROY":
+    # rallumant la VM). En mode auto, on saute ce prompt : il n'y a personne
+    # pour répondre, et c'est justement l'objectif du mode automatique.
+    if not auto_mode and args.confirm != "DESTROY":
         print(f"Cette action va DÉTRUIRE DÉFINITIVEMENT {target_desc}.")
         typed = input("Tape DESTROY en majuscules pour confirmer : ").strip()
         if typed != "DESTROY":
             print("Annulé.")
             return
+    elif auto_mode:
+        print(f"[AUTO] Confirmation automatique (mode non-interactif) — destruction de {target_desc} sans prompt.")
 
     proxmox = connect()
 
