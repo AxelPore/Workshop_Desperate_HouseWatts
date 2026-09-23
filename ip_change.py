@@ -42,9 +42,9 @@ SSH_USER = "axel"  # compte utilisé pour se connecter à chaque machine
 #    "cidr"      : masque en notation CIDR du sous-réseau de cette machine
 # ---------------------------------------------------------------------------
 MACHINES = [
-    {"name": "Poste pilotage",   "host": "10.0.0.10",    "interface": "eth0", "cidr": 24},
-    {"name": "Poste infirmerie", "host": "10.0.0.20",    "interface": "eth0", "cidr": 24},
-    {"name": "Poste quartier",   "host": "10.0.0.30",    "interface": "eth0", "cidr": 24},
+    {"name": "Poste pilotage",   "host": "10.0.0.1",    "interface": "eth0", "cidr": 24},
+    {"name": "Poste infirmerie", "host": "192.168.0.10",    "interface": "eth0", "cidr": 16},
+    {"name": "Poste quartier",   "host": "192.168.0.101",    "interface": "eth0", "cidr": 16},
     {"name": "srv-bdd",          "host": "172.16.0.251", "interface": "eth0", "cidr": 24},
     {"name": "srv-grafana",      "host": "172.16.0.250", "interface": "eth0", "cidr": 24},
     {"name": "srv-backup",       "host": "172.16.0.200", "interface": "eth0", "cidr": 24},

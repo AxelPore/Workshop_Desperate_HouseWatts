@@ -64,16 +64,15 @@ VERIFY_SSL = False                   # True si certificat valide en prod, False 
 # ---------------------------------------------------------------------------
 ZONES = {
     "cockpit": [
-        ("pve-node1", 101),   # Poste pilotage
+        ("pve-node1", 110),   # Poste pilotage
     ],
     "serveurs": [
-        ("pve-node1", 102),   # srv-bdd
-        ("pve-node1", 103),   # srv-grafana
-        ("pve-node1", 104),   # srv-backup
+        ("pve-node1", 101),   # srv-bdd
+        ("pve-node1", 103),   # srv-backup
     ],
     "quartiers": [
-        ("pve-node1", 105),   # Poste quartier
-        ("pve-node1", 106),   # Poste infirmerie
+        ("pve-node1", 130),   # Poste quartier
+        ("pve-node1", 120),   # Poste infirmerie
     ],
 }
 

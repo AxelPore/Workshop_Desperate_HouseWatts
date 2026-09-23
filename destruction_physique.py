@@ -53,9 +53,9 @@ BACKUP_STORAGE = "local"
 # 2. Cartographie zone -> VMs (identique à power_outage.py)
 # ---------------------------------------------------------------------------
 ZONES = {
-    "cockpit":   [("pve-node1", 101)],
-    "serveurs":  [("pve-node1", 102), ("pve-node1", 103), ("pve-node1", 104)],
-    "quartiers": [("pve-node1", 105), ("pve-node1", 106)],
+    "cockpit":   [("pve-node1", 110)],
+    "serveurs":  [("pve-node1", 101), ("pve-node1", 103)],
+    "quartiers": [("pve-node1", 130), ("pve-node1", 120)],
 }
 
 # Liste à plat de toutes les VMs connues (toutes zones confondues), construite
